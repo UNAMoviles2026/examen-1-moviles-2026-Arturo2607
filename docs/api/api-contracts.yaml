@@ -1,0 +1,349 @@
+openapi: "3.0.3"
+info:
+  title: CoworkingSpace API
+  description: >
+    API contracts for the CoworkingSpace mobile application.
+    Defines the endpoints used to create reservations and register
+    new coworking spaces in the system.
+  version: "1.0.0"
+
+servers:
+  - url: https://api.coworkingspace.com/v1
+    description: Production server
+
+paths:
+
+  /reservations:
+    post:
+      summary: Create a new reservation
+      description: >
+        Allows an authenticated user to reserve a coworking space
+        for a specific date and time range.
+      tags:
+        - Reservations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - spaceId
+                - userId
+                - date
+                - startTime
+                - endTime
+              properties:
+                spaceId:
+                  type: integer
+                  description: ID of the coworking space to reserve
+                  example: 3
+                userId:
+                  type: integer
+                  description: ID of the user making the reservation
+                  example: 101
+                date:
+                  type: string
+                  format: date
+                  description: Date of the reservation (YYYY-MM-DD)
+                  example: "2026-05-10"
+                startTime:
+                  type: string
+                  format: time
+                  description: Start time of the reservation (HH:MM)
+                  example: "09:00"
+                endTime:
+                  type: string
+                  format: time
+                  description: End time of the reservation (HH:MM)
+                  example: "13:00"
+                notes:
+                  type: string
+                  description: Optional notes from the user
+                  example: "Need a whiteboard and projector setup"
+      responses:
+        "201":
+          description: Reservation created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reservationId:
+                    type: integer
+                    description: Unique ID of the newly created reservation
+                    example: 587
+                  spaceId:
+                    type: integer
+                    example: 3
+                  userId:
+                    type: integer
+                    example: 101
+                  date:
+                    type: string
+                    format: date
+                    example: "2026-05-10"
+                  startTime:
+                    type: string
+                    example: "09:00"
+                  endTime:
+                    type: string
+                    example: "13:00"
+                  totalCost:
+                    type: number
+                    format: double
+                    description: Total cost calculated as pricePerHour * hours
+                    example: 24.00
+                  status:
+                    type: string
+                    enum: [CONFIRMED, PENDING, CANCELLED]
+                    example: "CONFIRMED"
+                  createdAt:
+                    type: string
+                    format: date-time
+                    example: "2026-04-25T08:30:00Z"
+        "400":
+          description: Bad request – missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 400
+                error: "BAD_REQUEST"
+                message: "startTime must be before endTime"
+        "409":
+          description: Conflict – the space is already reserved for that time slot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 409
+                error: "CONFLICT"
+                message: "Space 3 is already reserved from 09:00 to 13:00 on 2026-05-10"
+        "404":
+          description: Space or user not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 404
+                error: "NOT_FOUND"
+                message: "Space with ID 3 does not exist"
+
+  /spaces:
+    post:
+      summary: Register a new coworking space
+      description: >
+        Allows an administrator to add a new coworking space to the system,
+        including its details, capacity, pricing, and availability status.
+      tags:
+        - Spaces
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - description
+                - location
+                - capacity
+                - pricePerHour
+                - isAvailable
+              properties:
+                name:
+                  type: string
+                  description: Name of the coworking space
+                  example: "The Hub"
+                description:
+                  type: string
+                  description: Full description of the space and its amenities
+                  example: "A modern open-plan space for creative teams and freelancers."
+                location:
+                  type: string
+                  description: Physical address or area of the space
+                  example: "San José, Barrio Escalante"
+                capacity:
+                  type: integer
+                  description: Maximum number of people the space can accommodate
+                  example: 20
+                pricePerHour:
+                  type: number
+                  format: double
+                  description: Cost per hour in USD
+                  example: 8.00
+                isAvailable:
+                  type: boolean
+                  description: Whether the space is currently available for booking
+                  example: true
+                imageUrl:
+                  type: string
+                  format: uri
+                  description: URL of the main image for the space
+                  example: "https://storage.coworkingspace.com/images/the-hub.jpg"
+      responses:
+        "201":
+          description: Space registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spaceId:
+                    type: integer
+                    description: Unique ID assigned to the new space
+                    example: 6
+                  name:
+                    type: string
+                    example: "The Hub"
+                  description:
+                    type: string
+                    example: "A modern open-plan space for creative teams and freelancers."
+                  location:
+                    type: string
+                    example: "San José, Barrio Escalante"
+                  capacity:
+                    type: integer
+                    example: 20
+                  pricePerHour:
+                    type: number
+                    example: 8.00
+                  isAvailable:
+                    type: boolean
+                    example: true
+                  imageUrl:
+                    type: string
+                    example: "https://storage.coworkingspace.com/images/the-hub.jpg"
+                  createdAt:
+                    type: string
+                    format: date-time
+                    example: "2026-04-25T10:00:00Z"
+        "400":
+          description: Bad request – missing or invalid fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 400
+                error: "BAD_REQUEST"
+                message: "capacity must be a positive integer"
+        "409":
+          description: Conflict – a space with the same name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 409
+                error: "CONFLICT"
+                message: "A space named 'The Hub' already exists"
+
+  /reservations/{reservationId}:
+    put:
+      summary: Update an existing reservation
+      description: >
+        Allows a user or administrator to modify the status or time details
+        of an existing reservation (e.g. cancel or reschedule).
+      tags:
+        - Reservations
+      parameters:
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: ID of the reservation to update
+          example: 587
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [CONFIRMED, PENDING, CANCELLED]
+                  description: New status for the reservation
+                  example: "CANCELLED"
+                startTime:
+                  type: string
+                  format: time
+                  description: Updated start time (optional)
+                  example: "10:00"
+                endTime:
+                  type: string
+                  format: time
+                  description: Updated end time (optional)
+                  example: "14:00"
+                notes:
+                  type: string
+                  description: Updated notes (optional)
+                  example: "Rescheduled due to conflict"
+      responses:
+        "200":
+          description: Reservation updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reservationId:
+                    type: integer
+                    example: 587
+                  status:
+                    type: string
+                    example: "CANCELLED"
+                  startTime:
+                    type: string
+                    example: "10:00"
+                  endTime:
+                    type: string
+                    example: "14:00"
+                  updatedAt:
+                    type: string
+                    format: date-time
+                    example: "2026-04-25T11:00:00Z"
+        "404":
+          description: Reservation not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 404
+                error: "NOT_FOUND"
+                message: "Reservation with ID 587 does not exist"
+        "400":
+          description: Bad request – invalid status or time values
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                code: 400
+                error: "BAD_REQUEST"
+                message: "Invalid status value. Allowed: CONFIRMED, PENDING, CANCELLED"
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: HTTP status code
+          example: 400
+        error:
+          type: string
+          description: Short error identifier
+          example: "BAD_REQUEST"
+        message:
+          type: string
+          description: Human-readable explanation of the error
+          example: "One or more required fields are missing"
